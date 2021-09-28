@@ -1,0 +1,22 @@
+[package]
+name = "rde_bridge"
+version = "0.1.0"
+authors = ["Yannik Schnitzer <s8yaschn@stud.uni-saarland.de>, Maximilian Schwenger <maximilian.schwenger@cispa.saarland>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[dependencies]
+jni = { version = "0.10.2", default-features = false }
+rtlola-interpreter = "0.6.0"
+rtlola-frontend = "0.4.3"
+ordered-float = "2.5.1"
+byteorder = "^1.3.2"
+
+[profile.release]
+lto = true
+
+[lib]
+name = "rde_bridge"
+crate-type = ["cdylib"]
