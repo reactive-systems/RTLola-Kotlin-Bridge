@@ -1,7 +1,7 @@
 use core::time::Duration;
 use jni::objects::{JObject, JString};
 use jni::strings::JavaStr;
-use jni::sys::{jdouble, jdoubleArray, jlong};
+use jni::sys::{jdouble, jdoubleArray, jint, jlong};
 use jni::JNIEnv;
 use ordered_float::NotNan;
 use rtlola_frontend::ParserConfig;
@@ -65,6 +65,26 @@ unsafe fn convert_java_str(js: JavaStr) -> String {
 /// Interprets the `monitor` input as pointer to a `KotlinMonitor` received via the `init` function.
 /// The `input` argument contains a long value for each input of the specification plus the current timestamp at the end.
 #[no_mangle]
+pub extern "C" fn receive_single_value(
+    env: JNIEnv,
+    _: JObject,
+    monitor: jlong,
+    input_ix: jint,
+    value: jdouble,
+    timestamp: jdouble,
+) -> jdoubleArray {
+    let mut mon = unsafe { Box::from_raw(monitor as *mut KotlinMonitor) };
+    let mut event = vec![0f64; mon.num_inputs + 1];
+    event[input_ix as usize] = value;
+    event[mon.num_inputs + 1] = timestamp;
+    process_event(env, &mut mon, &event)
+}
+
+/// Receives a single event and returns an array of verdicts.
+///
+/// Interprets the `monitor` input as pointer to a `KotlinMonitor` received via the `init` function.
+/// The `input` argument contains a long value for each input of the specification plus the current timestamp at the end.
+#[no_mangle]
 pub extern "C" fn receive_event(
     env: JNIEnv,
     _: JObject,
@@ -81,7 +101,10 @@ pub extern "C" fn receive_event(
         // In release config, ignore invalid inputs.
         return env.new_double_array(0).unwrap();
     }
+    process_event(env, &mut mon, &event)
+}
 
+fn process_event(env: JNIEnv, mon: &mut KotlinMonitor, event: &[f64]) -> jdoubleArray {
     let (time, input) = event.split_last().unwrap();
     let input: Vec<Value> = input
         .into_iter()
