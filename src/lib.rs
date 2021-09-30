@@ -107,7 +107,7 @@ pub extern "C" fn receive_event(
 fn process_event(env: JNIEnv, mon: &mut KotlinMonitor, event: &[f64]) -> jdoubleArray {
     let (time, input) = event.split_last().unwrap();
     let input: Vec<Value> = input
-        .into_iter()
+        .iter()
         .map(|f| Value::Float(NotNan::new(*f).unwrap()))
         .collect();
     let updates = mon
@@ -118,26 +118,26 @@ fn process_event(env: JNIEnv, mon: &mut KotlinMonitor, event: &[f64]) -> jdouble
     let res = env
         .new_double_array((num_updates * mon.relevant_ixs.len()) as i32)
         .unwrap();
-    let output_copy_res: jni::errors::Result<()> = updates
-        .timed
-        .iter()
-        .enumerate()
-        .map(|(ix, update)| {
-            let (_, values) = update;
-            let output: Vec<jdouble> = values
-                .iter()
-                .filter(|(sr, _v)| mon.relevant_ixs.contains(sr))
-                .map(|(_sr, v)| {
-                    if let Value::Float(f) = v {
-                        f.into_inner() as jdouble
-                    } else {
-                        0.0 as jdouble
-                    }
-                })
-                .collect();
-            env.set_double_array_region(res, (mon.relevant_ixs.len() * ix) as i32, &output)
-        })
-        .collect();
+    let output_copy_res: jni::errors::Result<()> =
+        updates
+            .timed
+            .iter()
+            .enumerate()
+            .try_for_each(|(ix, update)| {
+                let (_, values) = update;
+                let output: Vec<jdouble> = values
+                    .iter()
+                    .filter(|(sr, _v)| mon.relevant_ixs.contains(sr))
+                    .map(|(_sr, v)| {
+                        if let Value::Float(f) = v {
+                            f.into_inner()
+                        } else {
+                            0f64
+                        }
+                    })
+                    .collect();
+                env.set_double_array_region(res, (mon.relevant_ixs.len() * ix) as i32, &output)
+            });
     debug_assert!(output_copy_res.is_ok());
     res
 }
